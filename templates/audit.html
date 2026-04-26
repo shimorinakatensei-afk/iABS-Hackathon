@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аудит - iABS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,.7); }
+            50%       { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+        }
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); }
+            50%       { transform: scale(1.15); }
+        }
+        .suspicious-glow { animation: pulse-red 2s infinite; border-color: #ef4444 !important; }
+        .tab-btn {
+            padding: 8px 20px; border-radius: 8px; border: 1px solid #374151;
+            background: transparent; color: #9ca3af; cursor: pointer; font-size: 13px;
+            font-weight: 600; transition: all .2s; position: relative;
+        }
+        .tab-btn.active { background: #1e40af; border-color: #3b82f6; color: #fff; }
+        .tab-btn:hover:not(.active) { border-color: #6b7280; color: #e2e8f0; }
+        .risk-critical { color: #ef4444; font-weight: 700; }
+        .risk-high     { color: #f97316; font-weight: 700; }
+        .risk-medium   { color: #f59e0b; font-weight: 600; }
+        .badge-new {
+            display: inline-block; background: #ef4444; color: #fff;
+            border-radius: 10px; padding: 1px 7px; font-size: 11px;
+            font-weight: 700; margin-left: 6px; animation: pulse-badge 1.5s infinite;
+        }
+        .ack-row { opacity: .45; }
+        code { font-family: monospace; font-size: 12px; background: rgba(255,255,255,.07); padding: 2px 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">iABS — Учёт Аренды</div>
+            <div class="menu">
+                <div class="menu-item" onclick="window.location.href='/lease-out'"><i>📄</i><span>Сдача в аренду</span></div>
+                <div class="menu-item" onclick="window.location.href='/lease-in'"><i>📥</i><span>Получение в аренду</span></div>
+                <div class="menu-item" onclick="window.location.href='/references'"><i>🗄️</i><span>Справочники</span></div>
+                <div class="menu-item active" onclick="window.location.href='/audit'"><i>🔍</i><span>Аудит</span></div>
+                <div class="menu-item" id="settings-menu" onclick="window.location.href='/settings'" style="display:none;"><i>⚙️</i><span>Настройки</span></div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="topbar">
+                <div class="topbar-title">Журнал аудита</div>
+                <div style="display:flex; align-items:center;">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Переключить тему"><div class="theme-toggle-switch"></div></div>
+                    <div class="user-info" onclick="window.location.href='/profile'">
+                        <div class="avatar">👤</div>
+                        <div class="user-details">
+                            <div class="user-name" id="user-name"></div>
+                            <div class="user-role" id="user-role"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- Tab buttons -->
+                <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center;">
+                    <button class="tab-btn active" id="tab-audit" onclick="switchTab('audit')">📋 Журнал действий</button>
+                    <button class="tab-btn" id="tab-suspicious" onclick="switchTab('suspicious')">
+                        ⚠️ Подозрительные операции
+                        <span class="badge-new" id="suspicious-badge" style="display:none;">0</span>
+                    </button>
+                    <span style="margin-left:auto; font-size:12px; color:#6b7280;" id="last-refresh"></span>
+                </div>
+
+                <!-- ── AUDIT LOG TAB ── -->
+                <div id="section-audit">
+                    <div class="card">
+                        <div class="filters" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+                            <select class="filter-select" id="filter-action" onchange="applyFilters()">
+                                <option value="">Все действия</option>
+                                <option value="LOGIN">Вход</option>
+                                <option value="LOGOUT">Выход</option>
+                                <option value="CREATE">Создание</option>
+                                <option value="UPDATE">Изменение</option>
+                                <option value="DELETE">Удаление</option>
+                                <option value="APPROVE">Утверждение</option>
+                                <option value="RETURN">Возврат</option>
+                                <option value="PAYMENT">Оплата</option>
+                                <option value="POSTING">Проводка</option>
+                            </select>
+                            <select class="filter-select" id="filter-entity" onchange="applyFilters()">
+                                <option value="">Все объекты</option>
+                                <option value="SESSION">Сессии</option>
+                                <option value="CONTRACT">Договоры</option>
+                            </select>
+                            <input type="text" class="filter-input" id="filter-user" placeholder="Поиск по пользователю..." oninput="applyFilters()">
+                            <button class="btn btn-secondary" onclick="clearFilters()" style="padding:6px 14px;">Сбросить</button>
+                        </div>
+
+                        <div id="stats-row" style="display:flex; gap:14px; margin-bottom:16px; flex-wrap:wrap;"></div>
+
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width:160px;">Дата / Время</th>
+                                        <th>Пользователь</th>
+                                        <th>Роль / №</th>
+                                        <th style="width:120px;">Действие</th>
+                                        <th>Объект</th>
+                                        <th>IP-адрес</th>
+                                        <th>Подробности</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-table"></tbody>
+                            </table>
+                        </div>
+                        <div id="empty-msg" style="display:none; text-align:center; padding:40px; color:#9ca3af;">Записей не найдено</div>
+                    </div>
+                </div>
+
+                <!-- ── SUSPICIOUS OPERATIONS TAB ── -->
+                <div id="section-suspicious" style="display:none;">
+                    <div class="card" id="suspicious-card" style="border:1px solid #374151; transition:border-color .3s, box-shadow .3s;">
+
+                        <!-- Header stats -->
+                        <div id="susp-stats" style="display:flex; gap:14px; margin-bottom:16px; flex-wrap:wrap;"></div>
+
+                        <!-- Legend -->
+                        <div style="display:flex; gap:16px; font-size:12px; margin-bottom:14px; flex-wrap:wrap;">
+                            <span><span class="risk-critical">● КРИТИЧЕСКИЙ</span> — немедленное реагирование</span>
+                            <span><span class="risk-high">● ВЫСОКИЙ</span> — требует проверки</span>
+                            <span><span class="risk-medium">● СРЕДНИЙ</span> — мониторинг</span>
+                            <span style="color:#6b7280;">● Затемнённые строки — проверено</span>
+                        </div>
+
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width:155px;">Дата / Время</th>
+                                        <th>Пользователь</th>
+                                        <th>IP-адрес</th>
+                                        <th>Действие</th>
+                                        <th>Причина подозрения</th>
+                                        <th style="width:100px;">Риск</th>
+                                        <th style="width:110px;">Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suspicious-table"></tbody>
+                            </table>
+                        </div>
+                        <div id="susp-empty" style="display:none; text-align:center; padding:48px; color:#9ca3af;">
+                            <div style="font-size:32px; margin-bottom:8px;">✅</div>
+                            Подозрительных операций не обнаружено
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let allLogs = [];
+        let allSuspicious = [];
+        let currentTab = 'audit';
+        let refreshInterval = null;
+
+        const actionLabels = {
+            LOGIN:   { text: 'Вход',        color: '#22c55e' },
+            LOGOUT:  { text: 'Выход',       color: '#9ca3af' },
+            CREATE:  { text: 'Создание',    color: '#6366f1' },
+            UPDATE:  { text: 'Изменение',   color: '#f59e0b' },
+            DELETE:  { text: 'Удаление',    color: '#ef4444' },
+            APPROVE: { text: 'Утверждение', color: '#10b981' },
+            RETURN:  { text: 'Возврат',     color: '#f97316' },
+            PAYMENT: { text: 'Оплата',      color: '#3b82f6' },
+            POSTING: { text: 'Проводка',    color: '#a78bfa' },
+        };
+
+        const riskLabel = { CRITICAL: 'КРИТИЧЕСКИЙ', HIGH: 'ВЫСОКИЙ', MEDIUM: 'СРЕДНИЙ' };
+        const riskClass = { CRITICAL: 'risk-critical', HIGH: 'risk-high', MEDIUM: 'risk-medium' };
+
+        function hexToRgb(hex) {
+            return `${parseInt(hex.slice(1,3),16)}, ${parseInt(hex.slice(3,5),16)}, ${parseInt(hex.slice(5,7),16)}`;
+        }
+
+        async function init() {
+            await loadUser();
+            await Promise.all([loadLogs(), loadSuspicious()]);
+            startAutoRefresh();
+        }
+
+        async function loadUser() {
+            const res = await fetch('/api/me');
+            if (!res.ok) { window.location.href = '/login'; return; }
+            const user = await res.json();
+            document.getElementById('user-name').textContent = user.name;
+            const roleEl = document.getElementById('user-role');
+            roleEl.textContent = user.role;
+            roleEl.className = 'user-role';
+            if (user.role === 'SUPERADMIN') { roleEl.classList.add('role-superadmin'); document.getElementById('settings-menu').style.display='flex'; }
+            else if (user.role === 'ADMIN') roleEl.classList.add('role-admin');
+        }
+
+        async function loadLogs() {
+            const res = await fetch('/api/audit/all');
+            if (!res.ok) return;
+            allLogs = await res.json();
+            renderStats();
+            applyFilters();
+        }
+
+        async function loadSuspicious() {
+            const res = await fetch('/api/suspicious-operations');
+            if (!res.ok) return;
+            allSuspicious = await res.json();
+            updateSuspiciousBadge();
+            if (currentTab === 'suspicious') renderSuspicious();
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(async () => {
+                await Promise.all([loadLogs(), loadSuspicious()]);
+                document.getElementById('last-refresh').textContent =
+                    'Обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+            }, 30000);
+        }
+
+        function updateSuspiciousBadge() {
+            const newCount = allSuspicious.filter(s => !s.acknowledged).length;
+            const badge = document.getElementById('suspicious-badge');
+            const tabBtn = document.getElementById('tab-suspicious');
+            if (newCount > 0) {
+                badge.textContent = newCount;
+                badge.style.display = 'inline-block';
+                tabBtn.style.borderColor = '#ef4444';
+                tabBtn.style.color = currentTab === 'suspicious' ? '#fff' : '#fca5a5';
+            } else {
+                badge.style.display = 'none';
+                if (currentTab !== 'suspicious') {
+                    tabBtn.style.borderColor = '';
+                    tabBtn.style.color = '';
+                }
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('section-audit').style.display      = tab === 'audit' ? 'block' : 'none';
+            document.getElementById('section-suspicious').style.display = tab === 'suspicious' ? 'block' : 'none';
+            document.getElementById('tab-audit').classList.toggle('active', tab === 'audit');
+            document.getElementById('tab-suspicious').classList.toggle('active', tab === 'suspicious');
+            if (tab === 'suspicious') renderSuspicious();
+        }
+
+        // ── Audit log ──────────────────────────────────────────────────────────
+        function renderStats() {
+            const logins  = allLogs.filter(l => l.action === 'LOGIN').length;
+            const actions = allLogs.filter(l => !['LOGIN','LOGOUT'].includes(l.action)).length;
+            const users   = new Set(allLogs.map(l => l.user_id)).size;
+            const newSusp = allSuspicious.filter(s => !s.acknowledged).length;
+            const stats = [
+                { label: 'Всего записей',    value: allLogs.length, color: '#6366f1' },
+                { label: 'Входов',           value: logins,         color: '#22c55e' },
+                { label: 'Действий',         value: actions,        color: '#f59e0b' },
+                { label: 'Пользователей',    value: users,          color: '#3b82f6' },
+                { label: '⚠️ Подозрительных', value: newSusp,        color: '#ef4444' },
+            ];
+            document.getElementById('stats-row').innerHTML = stats.map(s => `
+                <div style="background:rgba(${hexToRgb(s.color)},.1); border:1px solid rgba(${hexToRgb(s.color)},.3);
+                            border-radius:8px; padding:10px 18px; min-width:120px; cursor:${s.label.includes('Подоз') ? 'pointer':'default'};"
+                     ${s.label.includes('Подоз') ? "onclick=\"switchTab('suspicious')\"" : ''}>
+                    <div style="font-size:22px; font-weight:700; color:${s.color};">${s.value}</div>
+                    <div style="font-size:11px; color:#9ca3af; margin-top:2px;">${s.label}</div>
+                </div>`).join('');
+        }
+
+        function applyFilters() {
+            const action = document.getElementById('filter-action').value;
+            const entity = document.getElementById('filter-entity').value;
+            const user   = document.getElementById('filter-user').value.toLowerCase();
+            let filtered = allLogs;
+            if (action) filtered = filtered.filter(l => l.action === action);
+            if (entity) filtered = filtered.filter(l => l.entity_type === entity);
+            if (user)   filtered = filtered.filter(l => l.user_name.toLowerCase().includes(user));
+            renderAuditTable(filtered);
+        }
+
+        function clearFilters() {
+            ['filter-action','filter-entity','filter-user'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el.tagName === 'SELECT') el.value = ''; else el.value = '';
+            });
+            applyFilters();
+        }
+
+        function renderAuditTable(logs) {
+            const tbody = document.getElementById('audit-table');
+            const empty = document.getElementById('empty-msg');
+            tbody.innerHTML = '';
+            if (!logs.length) { empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+            logs.forEach(log => {
+                const tr = document.createElement('tr');
+                const ts = new Date(log.timestamp).toLocaleString('ru-RU');
+                const action = actionLabels[log.action] || { text: log.action, color: '#9ca3af' };
+                let details = '';
+                if (log.action === 'LOGIN')  details = '<span style="color:#9ca3af;">вошёл в систему</span>';
+                if (log.action === 'LOGOUT') details = '<span style="color:#9ca3af;">вышел из системы</span>';
+                if (log.action === 'CREATE') details = '<span style="color:#6366f1;">Новая запись</span>';
+                if (log.action === 'DELETE') details = '<span style="color:#ef4444;">Запись удалена</span>';
+                if (log.action === 'APPROVE' && log.new_value) {
+                    try { const d=JSON.parse(log.new_value); details=`<span style="color:#10b981;">${d.contract_number||''} · ${d.memo_number||''}</span>`; } catch {}
+                }
+                if (log.action === 'POSTING' && log.new_value) {
+                    try { const d=JSON.parse(log.new_value); details=`<span style="color:#a78bfa;">Дебет <code>${d.debet}</code> → Кредит <code>${d.kredit}</code></span>`; } catch {}
+                }
+                if (log.action === 'UPDATE' && log.old_value && log.new_value) {
+                    try {
+                        const o=JSON.parse(log.old_value), n=JSON.parse(log.new_value);
+                        const skip=['created_at','approved_by','memo_number','status','is_deleted'];
+                        const ch=Object.keys(n).filter(k=>o[k]!==n[k]&&!skip.includes(k));
+                        details = ch.length ? ch.slice(0,3).map(k=>`<span style="color:#f59e0b;">${k}: ${o[k]||'—'} → ${n[k]||'—'}</span>`).join('<br>') : '—';
+                    } catch {}
+                }
+                if (log.action === 'PAYMENT') details = '<span style="color:#3b82f6;">💳 Онлайн-платёж</span>';
+                const isSusp = allSuspicious.some(s =>
+                    s.user_id === log.user_id &&
+                    Math.abs(new Date(s.timestamp) - new Date(log.timestamp)) < 5000);
+                tr.innerHTML = `
+                    <td style="font-size:13px; color:#9ca3af; white-space:nowrap;">${ts}</td>
+                    <td style="font-weight:600;">${log.user_name} ${isSusp ? '<span style="color:#ef4444; font-size:11px;">⚠️</span>' : ''}</td>
+                    <td><span style="font-size:11px; padding:2px 7px; border-radius:4px; background:rgba(99,102,241,.15); color:#a5b4fc;">${log.user_id}</span></td>
+                    <td><span style="font-size:12px; font-weight:600; color:${action.color};">${action.text}</span></td>
+                    <td style="font-size:13px; color:#9ca3af;">${log.entity_type}${log.entity_type!=='SESSION'?` #${log.entity_id}`:''}</td>
+                    <td><code style="font-size:11px;">${log.ip_address || '—'}</code></td>
+                    <td style="font-size:13px;">${details}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ── Suspicious operations ──────────────────────────────────────────────
+        function renderSuspicious() {
+            const tbody  = document.getElementById('suspicious-table');
+            const empty  = document.getElementById('susp-empty');
+            const card   = document.getElementById('suspicious-card');
+            tbody.innerHTML = '';
+
+            const newOps = allSuspicious.filter(s => !s.acknowledged);
+
+            // Stats
+            const crit = allSuspicious.filter(s => s.risk_level === 'CRITICAL').length;
+            const high = allSuspicious.filter(s => s.risk_level === 'HIGH').length;
+            const med  = allSuspicious.filter(s => s.risk_level === 'MEDIUM').length;
+            document.getElementById('susp-stats').innerHTML = [
+                { label: 'Всего',         value: allSuspicious.length, color: '#9ca3af' },
+                { label: 'Критических',   value: crit,  color: '#ef4444' },
+                { label: 'Высоких',       value: high,  color: '#f97316' },
+                { label: 'Средних',       value: med,   color: '#f59e0b' },
+                { label: 'Не проверено',  value: newOps.length, color: '#ef4444' },
+            ].map(s => `<div style="background:rgba(${hexToRgb(s.color)},.1); border:1px solid rgba(${hexToRgb(s.color)},.25); border-radius:8px; padding:10px 16px; min-width:110px;">
+                <div style="font-size:22px; font-weight:700; color:${s.color};">${s.value}</div>
+                <div style="font-size:11px; color:#9ca3af;">${s.label}</div>
+            </div>`).join('');
+
+            // Glow effect
+            if (newOps.length > 0) card.classList.add('suspicious-glow');
+            else card.classList.remove('suspicious-glow');
+
+            if (!allSuspicious.length) { empty.style.display='block'; return; }
+            empty.style.display = 'none';
+
+            allSuspicious.forEach(op => {
+                const tr = document.createElement('tr');
+                if (op.acknowledged) tr.classList.add('ack-row');
+                const ts = new Date(op.timestamp).toLocaleString('ru-RU');
+                const action = actionLabels[op.action] || { text: op.action, color: '#9ca3af' };
+                tr.innerHTML = `
+                    <td style="font-size:12px; color:#9ca3af; white-space:nowrap;">${ts}</td>
+                    <td style="font-weight:600;">${op.user_name}<br><span style="font-size:11px; color:#6b7280;">Таб. №${op.user_id}</span></td>
+                    <td><code>${op.ip_address}</code></td>
+                    <td><span style="font-size:12px; font-weight:600; color:${action.color};">${action.text}</span><br>
+                        <span style="font-size:11px; color:#6b7280;">${op.entity_type} #${op.entity_id}</span></td>
+                    <td style="font-size:12px; line-height:1.7;">${op.reasons.join('<br>')}</td>
+                    <td><span class="${riskClass[op.risk_level] || 'risk-medium'}">● ${riskLabel[op.risk_level]||op.risk_level}</span></td>
+                    <td>${op.acknowledged
+                        ? '<span style="color:#34d399; font-size:12px;">✓ Проверено</span>'
+                        : `<button class="btn btn-danger" style="padding:4px 10px; font-size:11px;" onclick="acknowledge(${op.id})">Проверить</button>`
+                    }</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function acknowledge(id) {
+            await fetch(`/api/suspicious-operations/${id}/acknowledge`, { method: 'POST' });
+            await loadSuspicious();
+        }
+
+        init();
+    </script>
+</body>
+</html>

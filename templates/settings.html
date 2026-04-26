@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки - iABS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">iABS — Учёт Аренды</div>
+            <div class="menu">
+                <div class="menu-item" onclick="window.location.href='/lease-out'">
+                    <i>📄</i>
+                    <span>Сдача в аренду</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='/lease-in'">
+                    <i>📥</i>
+                    <span>Получение в аренду</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='/references'">
+                    <i>🗄️</i>
+                    <span>Справочники</span>
+                </div>
+                <div class="menu-item active" onclick="window.location.href='/settings'">
+                    <i>⚙️</i>
+                    <span>Настройки</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="topbar">
+                <div class="topbar-title">Настройки</div>
+                <div style="display: flex; align-items: center;">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+                        <div class="theme-toggle-switch"></div>
+                    </div>
+                    <div class="user-info" onclick="window.location.href='/profile'">
+                        <div class="avatar">👤</div>
+                        <div class="user-details">
+                            <div class="user-name" id="user-name"></div>
+                            <div class="user-role" id="user-role"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="card">
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('users')">Управление пользователями</button>
+                        <button class="tab" onclick="switchTab('permissions')">Прикрепление доступ</button>
+                    </div>
+
+                    <div class="tab-content active" id="tab-users">
+                        <div class="actions" style="margin-bottom: 20px;">
+                            <button class="btn btn-primary" onclick="openAddEmployeeModal()">
+                                <span>➕</span>
+                                <span>Добавить сотрудника</span>
+                            </button>
+                            <button class="btn btn-danger" id="btn-delete-employee" onclick="deleteEmployee()" disabled>
+                                <span>🗑️</span>
+                                <span>Удалить</span>
+                            </button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Табель №</th>
+                                        <th>ФИО</th>
+                                        <th>Роль</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tab-permissions">
+                        <div style="margin-bottom: 20px; color: #9ca3af;">
+                            Настройка прав доступа для каждой роли. Изменения применяются немедленно.
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Роль</th>
+                                        <th>Добавить</th>
+                                        <th>Изменить</th>
+                                        <th>Удалить</th>
+                                        <th>Утвердить</th>
+                                        <th>Возврат</th>
+                                        <th>Оплатить</th>
+                                        <th>Протокол</th>
+                                        <th>Настройки</th>
+                                        <th>Редактировать справочники</th>
+                                        <th>Удалять справочники</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="permissions-table">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Employee Modal -->
+    <div class="modal" id="employee-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Добавить сотрудника</div>
+                <button class="modal-close" onclick="closeModal('employee-modal')">×</button>
+            </div>
+
+            <form id="employee-form">
+                <div class="form-group">
+                    <label class="form-label">Табель №</label>
+                    <input type="text" class="form-input" id="employee-number" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">ФИО</label>
+                    <input type="text" class="form-input" id="employee-name" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Пароль</label>
+                    <input type="password" class="form-input" id="employee-password" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Роль</label>
+                    <select class="form-select" id="employee-role" required>
+                        <option value="">Выберите роль</option>
+                        <option value="ADMIN">Админ</option>
+                        <option value="CONTROLLER">Контроллер</option>
+                        <option value="OPERATOR">Оператор</option>
+                    </select>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('employee-modal')">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let selectedEmployee = null;
+
+        async function init() {
+            await loadUser();
+            await loadUsers();
+            await loadPermissions();
+        }
+
+        async function loadUser() {
+            const response = await fetch('/api/me');
+            if (!response.ok) {
+                window.location.href = '/login';
+                return;
+            }
+            currentUser = await response.json();
+
+            if (currentUser.role !== 'SUPERADMIN') {
+                window.location.href = '/lease-out';
+                return;
+            }
+
+            document.getElementById('user-name').textContent = currentUser.name;
+
+            const roleElement = document.getElementById('user-role');
+            roleElement.textContent = currentUser.role;
+            roleElement.className = 'user-role role-superadmin';
+        }
+
+        async function loadUsers() {
+            const response = await fetch('/api/users');
+            const users = await response.json();
+
+            const tbody = document.getElementById('users-table');
+            tbody.innerHTML = '';
+
+            users.forEach(user => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => selectEmployee(user, tr);
+
+                const roleText = {
+                    'SUPERADMIN': 'Суперадмин',
+                    'ADMIN': 'Админ',
+                    'CONTROLLER': 'Контроллер',
+                    'OPERATOR': 'Оператор'
+                }[user.role] || user.role;
+
+                tr.innerHTML = `
+                    <td><input type="radio" name="employee" onclick="event.stopPropagation(); selectEmployee(${JSON.stringify(user).replace(/"/g, '&quot;')}, this.parentElement.parentElement)"></td>
+                    <td>${user.personnel_number}</td>
+                    <td>${user.name}</td>
+                    <td>
+                        <select class="form-select" onchange="updateUserRole('${user.personnel_number}', this.value)" style="min-width: 150px;">
+                            <option value="SUPERADMIN" ${user.role === 'SUPERADMIN' ? 'selected' : ''}>Суперадмин</option>
+                            <option value="ADMIN" ${user.role === 'ADMIN' ? 'selected' : ''}>Админ</option>
+                            <option value="CONTROLLER" ${user.role === 'CONTROLLER' ? 'selected' : ''}>Контроллер</option>
+                            <option value="OPERATOR" ${user.role === 'OPERATOR' ? 'selected' : ''}>Оператор</option>
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function selectEmployee(employee, row) {
+            document.querySelectorAll('#users-table tr').forEach(tr => tr.classList.remove('selected'));
+            row.classList.add('selected');
+            row.querySelector('input[type="radio"]').checked = true;
+            selectedEmployee = employee;
+            document.getElementById('btn-delete-employee').disabled = false;
+        }
+
+        async function loadPermissions() {
+            const response = await fetch('/api/permissions');
+            const permissions = await response.json();
+
+            const tbody = document.getElementById('permissions-table');
+            tbody.innerHTML = '';
+
+            const roleNames = {
+                'SUPERADMIN': 'Суперадмин',
+                'ADMIN': 'Админ',
+                'CONTROLLER': 'Контроллер',
+                'OPERATOR': 'Оператор'
+            };
+
+            for (const [role, perms] of Object.entries(permissions)) {
+                const tr = document.createElement('tr');
+                const isSuperAdmin = role === 'SUPERADMIN';
+
+                tr.innerHTML = `
+                    <td><strong>${roleNames[role]}</strong></td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.add ? 'checked' : ''} onchange="updatePermission('${role}', 'add', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.edit ? 'checked' : ''} onchange="updatePermission('${role}', 'edit', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.delete ? 'checked' : ''} onchange="updatePermission('${role}', 'delete', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.approve ? 'checked' : ''} onchange="updatePermission('${role}', 'approve', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.return ? 'checked' : ''} onchange="updatePermission('${role}', 'return', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.payment ? 'checked' : ''} onchange="updatePermission('${role}', 'payment', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.protocol ? 'checked' : ''} onchange="updatePermission('${role}', 'protocol', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.settings ? 'checked' : ''} onchange="updatePermission('${role}', 'settings', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.references_edit ? 'checked' : ''} onchange="updatePermission('${role}', 'references_edit', this.checked)">`}</td>
+                    <td>${isSuperAdmin ? '✓ Полный доступ' : `<input type="checkbox" ${perms.references_delete ? 'checked' : ''} onchange="updatePermission('${role}', 'references_delete', this.checked)">`}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        async function updatePermission(role, permission, value) {
+            const response = await fetch('/api/permissions', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role, permission, value })
+            });
+
+            if (response.ok) {
+                console.log('Разрешение обновлено');
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+                await loadPermissions();
+            }
+        }
+
+        async function updateUserRole(personnelNumber, role) {
+            const response = await fetch(`/api/users/${personnelNumber}/role`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role })
+            });
+
+            if (response.ok) {
+                alert('Роль обновлена');
+                await loadUsers();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+                await loadUsers();
+            }
+        }
+
+        function openAddEmployeeModal() {
+            document.getElementById('employee-form').reset();
+            openModal('employee-modal');
+        }
+
+        document.getElementById('employee-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                personnel_number: document.getElementById('employee-number').value,
+                name: document.getElementById('employee-name').value,
+                password: document.getElementById('employee-password').value,
+                role: document.getElementById('employee-role').value,
+            };
+
+            const response = await fetch('/api/employees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeModal('employee-modal');
+                await loadUsers();
+                alert('Сотрудник добавлен');
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        });
+
+        async function deleteEmployee() {
+            if (!selectedEmployee || !confirm(`Удалить сотрудника ${selectedEmployee.name}?`)) return;
+
+            const response = await fetch(`/api/employees/${selectedEmployee.personnel_number}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                await loadUsers();
+                selectedEmployee = null;
+                document.getElementById('btn-delete-employee').disabled = true;
+                alert('Сотрудник удалён');
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        init();
+    </script>
+</body>
+</html>

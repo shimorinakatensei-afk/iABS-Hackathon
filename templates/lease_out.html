@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сдача в аренду - iABS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">iABS — Учёт Аренды</div>
+            <div class="menu">
+                <div class="menu-item active" onclick="window.location.href='/lease-out'">
+                    <i>📄</i>
+                    <span>Сдача в аренду</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='/lease-in'">
+                    <i>📥</i>
+                    <span>Получение в аренду</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='/references'">
+                    <i>🗄️</i>
+                    <span>Справочники</span>
+                </div>
+                <div class="menu-item" id="audit-menu" onclick="window.location.href='/audit'" style="display: none;">
+                    <i>🔍</i>
+                    <span>Аудит</span>
+                </div>
+                <div class="menu-item" id="settings-menu" onclick="window.location.href='/settings'" style="display: none;">
+                    <i>⚙️</i>
+                    <span>Настройки</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="topbar">
+                <div class="topbar-title">Сдача в аренду</div>
+                <div style="display: flex; align-items: center;">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+                        <div class="theme-toggle-switch"></div>
+                    </div>
+                    <div class="user-info" onclick="window.location.href='/profile'">
+                        <div class="avatar">👤</div>
+                        <div class="user-details">
+                            <div class="user-name" id="user-name"></div>
+                            <div class="user-role" id="user-role"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="card">
+                    <div class="actions">
+                        <button class="btn btn-primary" id="btn-add" onclick="openAddModal()">
+                            <span>➕</span>
+                            <span>Добавить</span>
+                        </button>
+                        <button class="btn btn-secondary" id="btn-edit" onclick="openEditModal()" disabled>
+                            <span>✏️</span>
+                            <span>Изменить</span>
+                        </button>
+                        <button class="btn btn-danger" id="btn-delete" onclick="deleteContract()" disabled>
+                            <span>🗑️</span>
+                            <span>Удалить</span>
+                        </button>
+                        <button class="btn btn-success" id="btn-approve" onclick="approveContract()" disabled>
+                            <span>✓</span>
+                            <span>Утвердить</span>
+                        </button>
+                        <button class="btn btn-warning" id="btn-return" onclick="returnContract()" disabled>
+                            <span>↩️</span>
+                            <span>Возврат из аренды</span>
+                        </button>
+                        <button class="btn btn-purple" id="btn-protocol" onclick="openProtocolModal()" disabled>
+                            <span>📋</span>
+                            <span>Протокол</span>
+                        </button>
+                        <button class="btn btn-memo" id="btn-memo" onclick="printMemo()" disabled>
+                            <span>🖨️</span>
+                            <span>Мемориальный ордер</span>
+                        </button>
+                    </div>
+
+                    <div class="filters">
+                        <select class="filter-select" id="filter-status" onchange="loadContracts()">
+                            <option value="">Все статусы</option>
+                            <option value="DRAFT">Черновик</option>
+                            <option value="APPROVED">Утверждён</option>
+                            <option value="RETURNED">Возвращён</option>
+                        </select>
+                        <input type="text" class="filter-input" id="filter-search" placeholder="Поиск..." onkeyup="loadContracts()">
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>№ договора</th>
+                                    <th>Арендатор</th>
+                                    <th>Тип договора</th>
+                                    <th>Объект аренды</th>
+                                    <th>Дата начала</th>
+                                    <th>Дата конца</th>
+                                    <th>Срок</th>
+                                    <th>Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contracts-table">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="contract-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modal-title">Добавить договор</div>
+                <button class="modal-close" onclick="closeModal('contract-modal')">×</button>
+            </div>
+
+            <form id="contract-form">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">№ договора</label>
+                        <input type="text" class="form-input" id="contract-number" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Арендатор</label>
+                        <select class="form-select" id="counterparty" required onchange="onCounterpartyChange()">
+                            <option value="">Выберите арендатора</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Тип договора</label>
+                        <select class="form-select" id="agreement-type" onchange="onAgreementTypeChange()">
+                            <option value="">Выберите тип</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="new-type-group" style="display:none;">
+                        <label class="form-label">Название нового типа</label>
+                        <input type="text" class="form-input" id="new-agreement-type" placeholder="Введите название...">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Объект аренды</label>
+                    <textarea class="form-textarea" id="lease-object" required rows="2"></textarea>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Дата начала</label>
+                        <input type="date" class="form-input" id="start-date" required onchange="calculateDuration()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Дата конца</label>
+                        <input type="date" class="form-input" id="end-date" required onchange="calculateDuration()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Срок аренды</label>
+                    <input type="text" class="form-input" id="duration-type" readonly placeholder="Определяется по датам" style="cursor:default; opacity:.75;">
+                </div>
+
+                <div style="border-top:1px solid #2d3748; margin:16px 0 12px; padding-top:12px;">
+                    <div style="font-size:12px; font-weight:600; color:#9ca3af; letter-spacing:.05em; margin-bottom:12px;">ПЛАТЁЖНЫЕ РЕКВИЗИТЫ</div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label class="form-label">Плательщик</label>
+                            <input type="text" class="form-input" id="payer">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Счёт по дебету</label>
+                            <input type="text" class="form-input" id="payer-account">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Банк плательщика</label>
+                            <input type="text" class="form-input" id="payer-bank">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">МФО плательщика</label>
+                            <input type="text" class="form-input" id="payer-mfo">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label class="form-label">Получатель</label>
+                            <input type="text" class="form-input" id="recipient">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Счёт получателя (кредит)</label>
+                            <input type="text" class="form-input" id="recipient-account">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Банк получателя</label>
+                            <input type="text" class="form-input" id="recipient-bank">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">МФО получателя</label>
+                            <input type="text" class="form-input" id="recipient-mfo">
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:2fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label class="form-label">Сумма</label>
+                            <input type="number" class="form-input" id="amount" min="0" step="0.01" placeholder="0.00" onchange="updatePaymentSchedule()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Валюта</label>
+                            <select class="form-select" id="currency">
+                                <option value="UZS">UZS — Сум</option>
+                                <option value="USD">USD — Доллар</option>
+                                <option value="EUR">EUR — Евро</option>
+                                <option value="CNY">CNY — Юань</option>
+                                <option value="RUB">RUB — Рубль</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Назначение платежа</label>
+                        <textarea class="form-textarea" id="payment-purpose" rows="2" placeholder="Укажите назначение платежа..."></textarea>
+                    </div>
+
+                    <div style="border-top:1px solid #374151; margin:12px 0; padding-top:12px;">
+                        <div style="font-size:12px; font-weight:600; color:#9ca3af; letter-spacing:.05em; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+                            ГРАФИК ПЛАТЕЖЕЙ
+                            <span id="freq-hint" style="font-size:11px; color:#60a5fa; font-weight:400;"></span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:10px;">
+                            <div class="form-group">
+                                <label class="form-label">Периодичность</label>
+                                <select class="form-select" id="payment-frequency" onchange="updatePaymentSchedule()">
+                                    <option value="MONTHLY">Ежемесячно</option>
+                                    <option value="QUARTERLY">Ежеквартально</option>
+                                    <option value="YEARLY">Ежегодно</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">День платежа (число месяца)</label>
+                                <input type="number" class="form-input" id="payment-day" min="1" max="28" value="1" onchange="updatePaymentSchedule()">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" style="width:100%; justify-content:center; margin-bottom:6px;" onclick="toggleSchedulePreview()">
+                            📅 Показать / Скрыть график
+                        </button>
+                        <div id="schedule-preview" style="display:none; max-height:220px; overflow-y:auto; border:1px solid #374151; border-radius:6px;">
+                            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                                <thead>
+                                    <tr style="position:sticky; top:0; background:#1a2535;">
+                                        <th style="padding:6px 10px; text-align:left;">№</th>
+                                        <th style="padding:6px 10px; text-align:left;">Дата платежа</th>
+                                        <th style="padding:6px 10px; text-align:right;">Сумма</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="schedule-tbody">
+                                    <tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af;">Заполните даты и сумму</td></tr>
+                                </tbody>
+                            </table>
+                            <div id="schedule-summary" style="font-size:11px; color:#9ca3af; text-align:right; padding:6px 10px; border-top:1px solid #374151;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('contract-modal')">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Posting Confirmation Modal -->
+    <div class="modal" id="posting-confirm-modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <div class="modal-title">Бухгалтерская проводка</div>
+                <button class="modal-close" onclick="closeModal('posting-confirm-modal')">×</button>
+            </div>
+            <div style="padding: 8px 0 16px;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <tr>
+                        <td style="padding:10px 8px; font-weight:600; color:#9ca3af; width:38%;">№ договора</td>
+                        <td style="padding:10px 8px;" id="pc-contract-number">—</td>
+                    </tr>
+                    <tr style="background:rgba(255,255,255,.04)">
+                        <td style="padding:10px 8px; font-weight:600; color:#9ca3af;">Дебет (счёт)</td>
+                        <td style="padding:10px 8px; font-family:monospace;" id="pc-debet">—</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 8px; font-weight:600; color:#9ca3af;">Кредит (счёт)</td>
+                        <td style="padding:10px 8px; font-family:monospace;" id="pc-kredit">—</td>
+                    </tr>
+                    <tr style="background:rgba(255,255,255,.04)">
+                        <td style="padding:10px 8px; font-weight:600; color:#9ca3af;">Сумма</td>
+                        <td style="padding:10px 8px; font-weight:600;" id="pc-amount">—</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('posting-confirm-modal')">Отмена</button>
+                <button type="button" class="btn btn-success" onclick="confirmApprove()">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Protocol Modal -->
+    <div class="modal" id="protocol-modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <div class="modal-title">Протокол изменений</div>
+                <button class="modal-close" onclick="closeModal('protocol-modal')">×</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Дата/Время</th>
+                            <th>Пользователь</th>
+                            <th>Действие</th>
+                            <th>Изменения</th>
+                        </tr>
+                    </thead>
+                    <tbody id="protocol-table">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('protocol-modal')">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let selectedContract = null;
+        let currentUser = null;
+        let editingContractId = null;
+        let userPermissions = {};
+        let counterpartiesMap = {};
+
+        async function init() {
+            await loadUser();
+            await loadCounterparties();
+            await loadContracts();
+        }
+
+        async function loadUser() {
+            const response = await fetch('/api/me');
+            if (!response.ok) {
+                window.location.href = '/login';
+                return;
+            }
+            currentUser = await response.json();
+            document.getElementById('user-name').textContent = currentUser.name;
+
+            const roleElement = document.getElementById('user-role');
+            roleElement.textContent = currentUser.role;
+
+            // Add role color class
+            roleElement.className = 'user-role';
+            if (currentUser.role === 'SUPERADMIN') {
+                roleElement.classList.add('role-superadmin');
+                document.getElementById('settings-menu').style.display = 'flex';
+                document.getElementById('audit-menu').style.display = 'flex';
+            } else if (currentUser.role === 'ADMIN') {
+                roleElement.classList.add('role-admin');
+                document.getElementById('audit-menu').style.display = 'flex';
+            } else if (currentUser.role === 'CONTROLLER') {
+                roleElement.classList.add('role-controller');
+            } else if (currentUser.role === 'OPERATOR') {
+                roleElement.classList.add('role-operator');
+            }
+
+            const permResponse = await fetch('/api/permissions/me');
+            userPermissions = await permResponse.json();
+
+            updateButtonPermissions();
+        }
+
+        async function loadCounterparties() {
+            const response = await fetch('/api/counterparties');
+            const counterparties = await response.json();
+            counterpartiesMap = {};
+            const select = document.getElementById('counterparty');
+            select.innerHTML = '<option value="">Выберите арендатора</option>';
+            counterparties.filter(c => c.type === 'LESSEE').forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.name;
+                option.textContent = c.name;
+                select.appendChild(option);
+                counterpartiesMap[c.name] = c;
+            });
+        }
+
+        function calculateDuration() {
+            const s = document.getElementById('start-date').value;
+            const e = document.getElementById('end-date').value;
+            const field = document.getElementById('duration-type');
+            if (s && e) {
+                const days = (new Date(e) - new Date(s)) / 86400000;
+                field.value = days <= 365 ? 'Краткосрочная' : 'Долгосрочная';
+                // auto-set payment day to start date's day
+                const startDay = Math.min(new Date(s).getDate(), 28);
+                document.getElementById('payment-day').value = startDay;
+            } else {
+                field.value = '';
+            }
+            autoSuggestFrequency();
+            updatePaymentSchedule();
+        }
+
+        function autoSuggestFrequency() {
+            const duration = document.getElementById('duration-type').value;
+            const leaseKindEl = document.getElementById('lease-kind');
+            const kind = leaseKindEl ? leaseKindEl.value : '';
+            let freq = 'MONTHLY';
+            let hint = '';
+            if (kind === 'LEASING')      { freq = 'MONTHLY';    hint = '(лизинг — ежемесячно)'; }
+            else if (kind === 'SUBARENDA') { freq = 'MONTHLY';  hint = '(субаренда — ежемесячно)'; }
+            else if (duration === 'Долгосрочная') { freq = 'QUARTERLY'; hint = '(долгосрочная — ежеквартально)'; }
+            else if (duration === 'Краткосрочная') { freq = 'MONTHLY'; hint = '(краткосрочная — ежемесячно)'; }
+            document.getElementById('payment-frequency').value = freq;
+            const hint_el = document.getElementById('freq-hint');
+            if (hint_el) hint_el.textContent = hint;
+        }
+
+        function buildSchedule(startStr, endStr, freq, day, total) {
+            const schedule = [];
+            const endDate = new Date(endStr);
+            let cur = new Date(startStr);
+            cur.setDate(day);
+            if (cur <= new Date(startStr)) {
+                if (freq === 'MONTHLY')   cur.setMonth(cur.getMonth() + 1);
+                else if (freq === 'QUARTERLY') cur.setMonth(cur.getMonth() + 3);
+                else cur.setFullYear(cur.getFullYear() + 1);
+            }
+            while (cur <= endDate) {
+                schedule.push(cur.toISOString().split('T')[0]);
+                const next = new Date(cur);
+                if (freq === 'MONTHLY')   next.setMonth(next.getMonth() + 1);
+                else if (freq === 'QUARTERLY') next.setMonth(next.getMonth() + 3);
+                else next.setFullYear(next.getFullYear() + 1);
+                cur = next;
+            }
+            const per = schedule.length > 0 ? total / schedule.length : total;
+            return schedule.map(date => ({ date, amount: per }));
+        }
+
+        function updatePaymentSchedule() {
+            const start  = document.getElementById('start-date').value;
+            const end    = document.getElementById('end-date').value;
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const freq   = document.getElementById('payment-frequency').value;
+            const day    = Math.min(Math.max(parseInt(document.getElementById('payment-day').value) || 1, 1), 28);
+            const cur    = document.getElementById('currency')?.value || 'UZS';
+            const tbody  = document.getElementById('schedule-tbody');
+            const sumEl  = document.getElementById('schedule-summary');
+            if (!tbody) return;
+            if (!start || !end || !amount) {
+                tbody.innerHTML = '<tr><td colspan="3" style="padding:12px; text-align:center; color:#9ca3af;">Заполните даты и сумму</td></tr>';
+                if (sumEl) sumEl.textContent = '';
+                return;
+            }
+            const rows = buildSchedule(start, end, freq, day, amount);
+            tbody.innerHTML = '';
+            const today = new Date().toISOString().split('T')[0];
+            rows.forEach((r, i) => {
+                const overdue = r.date < today;
+                const tr = document.createElement('tr');
+                tr.style.background = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.02)';
+                tr.innerHTML = `<td style="padding:5px 10px;">${i+1}</td>` +
+                    `<td style="padding:5px 10px; color:${overdue ? '#f87171' : '#e2e8f0'};">${r.date}</td>` +
+                    `<td style="padding:5px 10px; text-align:right;">${r.amount.toLocaleString('ru-RU',{minimumFractionDigits:2})} ${cur}</td>`;
+                tbody.appendChild(tr);
+            });
+            if (sumEl) sumEl.textContent = `Платежей: ${rows.length} · Итого: ${amount.toLocaleString('ru-RU')} ${cur}`;
+        }
+
+        function toggleSchedulePreview() {
+            const el = document.getElementById('schedule-preview');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            if (el.style.display === 'block') updatePaymentSchedule();
+        }
+
+        async function loadContractTypes(currentValue) {
+            const response = await fetch('/api/contract-types');
+            const types = await response.json();
+            const select = document.getElementById('agreement-type');
+            select.innerHTML = '<option value="">Выберите тип</option>';
+            types.filter(t => t.status === 'ACTIVE').forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.name;
+                opt.textContent = t.name;
+                select.appendChild(opt);
+            });
+            const newOpt = document.createElement('option');
+            newOpt.value = '__new__';
+            newOpt.textContent = '+ Добавить новый тип';
+            select.appendChild(newOpt);
+            if (currentValue) select.value = currentValue;
+        }
+
+        function onAgreementTypeChange() {
+            const val = document.getElementById('agreement-type').value;
+            const group = document.getElementById('new-type-group');
+            group.style.display = val === '__new__' ? 'block' : 'none';
+            if (val !== '__new__') document.getElementById('new-agreement-type').value = '';
+        }
+
+        function onCounterpartyChange() {
+            const name = document.getElementById('counterparty').value;
+            const cp = counterpartiesMap[name];
+            if (cp) {
+                document.getElementById('payer').value         = cp.name || '';
+                document.getElementById('payer-account').value = cp.bank_account || '';
+                document.getElementById('payer-bank').value    = cp.bank_name || '';
+                document.getElementById('payer-mfo').value     = cp.bik || '';
+            } else {
+                document.getElementById('payer').value         = '';
+                document.getElementById('payer-account').value = '';
+                document.getElementById('payer-bank').value    = '';
+                document.getElementById('payer-mfo').value     = '';
+            }
+        }
+
+        async function loadContracts() {
+            const status = document.getElementById('filter-status').value;
+            const search = document.getElementById('filter-search').value;
+
+            const params = new URLSearchParams({
+                contract_type: 'LEASE_OUT',
+                ...(status && { status }),
+                ...(search && { search })
+            });
+
+            const response = await fetch(`/api/contracts?${params}`);
+            const contracts = await response.json();
+
+            const tbody = document.getElementById('contracts-table');
+            tbody.innerHTML = '';
+
+            contracts.forEach(contract => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => selectContract(contract, tr);
+
+                const statusBadge = contract.status === 'DRAFT' ? 'badge-draft' :
+                                   contract.status === 'APPROVED' ? 'badge-approved' : 'badge-returned';
+                const statusText = contract.status === 'DRAFT' ? 'Черновик' :
+                                  contract.status === 'APPROVED' ? 'Утверждён' : 'Возвращён';
+
+                const diffDays = (new Date(contract.end_date) - new Date(contract.start_date)) / 86400000;
+                const durationLabel = contract.start_date && contract.end_date
+                    ? (diffDays <= 365 ? 'Краткосрочная' : 'Долгосрочная') : '—';
+
+                tr.innerHTML = `
+                    <td><input type="radio" name="contract" onclick="event.stopPropagation(); selectContract(${JSON.stringify(contract).replace(/"/g, '&quot;')}, this.parentElement.parentElement)"></td>
+                    <td>${contract.contract_number}</td>
+                    <td>${contract.counterparty}</td>
+                    <td>${contract.agreement_type || '—'}</td>
+                    <td>${contract.lease_object}</td>
+                    <td>${contract.start_date}</td>
+                    <td>${contract.end_date}</td>
+                    <td style="font-size:12px; color:${diffDays <= 365 ? '#34d399' : '#f59e0b'};">${durationLabel}</td>
+                    <td><span class="badge ${statusBadge}">${statusText}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function selectContract(contract, row) {
+            document.querySelectorAll('#contracts-table tr').forEach(tr => tr.classList.remove('selected'));
+            row.classList.add('selected');
+            row.querySelector('input[type="radio"]').checked = true;
+            selectedContract = contract;
+            updateButtonPermissions();
+        }
+
+        function updateButtonPermissions() {
+            if (!currentUser || !userPermissions) return;
+
+            const canCreate = userPermissions.add;
+            const canEdit = selectedContract && selectedContract.status === 'DRAFT' && userPermissions.edit;
+            const canDelete = selectedContract && selectedContract.status === 'DRAFT' && userPermissions.delete;
+            const canApprove = selectedContract && selectedContract.status === 'DRAFT' &&
+                              userPermissions.approve &&
+                              selectedContract.created_by !== currentUser.personnel_number;
+            const canReturn = selectedContract && selectedContract.status === 'APPROVED' && userPermissions.return;
+            const canProtocol = selectedContract && userPermissions.protocol;
+
+            const canMemo = selectedContract && (selectedContract.status === 'APPROVED' || selectedContract.status === 'RETURNED');
+
+            document.getElementById('btn-add').disabled = !canCreate;
+            document.getElementById('btn-edit').disabled = !canEdit;
+            document.getElementById('btn-delete').disabled = !canDelete;
+            document.getElementById('btn-approve').disabled = !canApprove;
+            document.getElementById('btn-return').disabled = !canReturn;
+            document.getElementById('btn-protocol').disabled = !canProtocol;
+            document.getElementById('btn-memo').disabled = !canMemo;
+        }
+
+        async function openAddModal() {
+            editingContractId = null;
+            document.getElementById('modal-title').textContent = 'Добавить договор';
+            document.getElementById('contract-form').reset();
+            document.getElementById('new-type-group').style.display = 'none';
+            document.getElementById('contract-number').disabled = false;
+            await Promise.all([loadCounterparties(), loadContractTypes()]);
+            const numRes = await fetch('/api/contracts/next-number');
+            if (numRes.ok) {
+                const { contract_number } = await numRes.json();
+                document.getElementById('contract-number').value = contract_number;
+            }
+            document.getElementById('start-date').value = new Date().toISOString().split('T')[0];
+            openModal('contract-modal');
+        }
+
+        async function openEditModal() {
+            if (!selectedContract) return;
+            editingContractId = selectedContract.id;
+            document.getElementById('modal-title').textContent = 'Изменить договор';
+            document.getElementById('contract-number').value = selectedContract.contract_number;
+            document.getElementById('contract-number').disabled = true;
+            document.getElementById('new-type-group').style.display = 'none';
+            await Promise.all([loadCounterparties(), loadContractTypes(selectedContract.agreement_type)]);
+            document.getElementById('counterparty').value = selectedContract.counterparty;
+            document.getElementById('lease-object').value = selectedContract.lease_object;
+            document.getElementById('start-date').value = selectedContract.start_date;
+            document.getElementById('end-date').value = selectedContract.end_date;
+            document.getElementById('payer').value             = selectedContract.payer || '';
+            document.getElementById('payer-account').value    = selectedContract.payer_account || '';
+            document.getElementById('payer-bank').value       = selectedContract.payer_bank || '';
+            document.getElementById('payer-mfo').value        = selectedContract.payer_mfo || '';
+            document.getElementById('recipient').value        = selectedContract.recipient || '';
+            document.getElementById('recipient-account').value= selectedContract.recipient_account || '';
+            document.getElementById('recipient-bank').value   = selectedContract.recipient_bank || '';
+            document.getElementById('recipient-mfo').value    = selectedContract.recipient_mfo || '';
+            document.getElementById('amount').value           = selectedContract.amount || '';
+            document.getElementById('currency').value         = selectedContract.currency || 'UZS';
+            document.getElementById('payment-purpose').value  = selectedContract.payment_purpose || '';
+            document.getElementById('payment-frequency').value = selectedContract.payment_frequency || 'MONTHLY';
+            document.getElementById('payment-day').value      = selectedContract.payment_day || 1;
+            calculateDuration();
+            openModal('contract-modal');
+        }
+
+        document.getElementById('contract-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            let agreementType = document.getElementById('agreement-type').value;
+            if (agreementType === '__new__') {
+                const newName = document.getElementById('new-agreement-type').value.trim();
+                if (!newName) { alert('Введите название нового типа договора'); return; }
+                const typeRes = await fetch('/api/contract-types', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName, code: newName.toUpperCase().replace(/\s+/g, '_'), status: 'ACTIVE' })
+                });
+                if (!typeRes.ok) { alert('Ошибка при создании типа договора'); return; }
+                agreementType = newName;
+            }
+
+            const data = {
+                contract_number:  document.getElementById('contract-number').value,
+                contract_type:    'LEASE_OUT',
+                counterparty:     document.getElementById('counterparty').value,
+                lease_object:     document.getElementById('lease-object').value,
+                start_date:       document.getElementById('start-date').value,
+                end_date:         document.getElementById('end-date').value,
+                agreement_type:   agreementType || null,
+                payer:            document.getElementById('payer').value || null,
+                payer_account:    document.getElementById('payer-account').value || null,
+                payer_bank:       document.getElementById('payer-bank').value || null,
+                payer_mfo:        document.getElementById('payer-mfo').value || null,
+                recipient:        document.getElementById('recipient').value || null,
+                recipient_account:document.getElementById('recipient-account').value || null,
+                recipient_bank:   document.getElementById('recipient-bank').value || null,
+                recipient_mfo:    document.getElementById('recipient-mfo').value || null,
+                amount:            document.getElementById('amount').value ? parseFloat(document.getElementById('amount').value) : null,
+                currency:          document.getElementById('currency').value,
+                payment_purpose:   document.getElementById('payment-purpose').value || null,
+                payment_frequency: document.getElementById('payment-frequency').value || null,
+                payment_day:       parseInt(document.getElementById('payment-day').value) || null,
+            };
+
+            const url = editingContractId ? `/api/contracts/${editingContractId}` : '/api/contracts';
+            const method = editingContractId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeModal('contract-modal');
+                await loadContracts();
+                selectedContract = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        });
+
+        async function deleteContract() {
+            if (!selectedContract || !confirm('Удалить договор?')) return;
+
+            const response = await fetch(`/api/contracts/${selectedContract.id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                await loadContracts();
+                selectedContract = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        }
+
+        function approveContract() {
+            if (!selectedContract) return;
+            document.getElementById('pc-contract-number').textContent = selectedContract.contract_number;
+            document.getElementById('pc-debet').textContent  = selectedContract.payer_account || '—';
+            document.getElementById('pc-kredit').textContent = selectedContract.recipient_account || '—';
+            const amt = selectedContract.amount;
+            document.getElementById('pc-amount').textContent = amt
+                ? `${Number(amt).toLocaleString('ru-RU', {minimumFractionDigits: 2})} ${selectedContract.currency || 'UZS'}`
+                : '—';
+            openModal('posting-confirm-modal');
+        }
+
+        async function confirmApprove() {
+            closeModal('posting-confirm-modal');
+            const response = await fetch(`/api/contracts/${selectedContract.id}/approve`, { method: 'POST' });
+            if (response.ok) {
+                const result = await response.json();
+                window.open(`/posting/${result.id}`, '_blank');
+                await loadContracts();
+                selectedContract = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        }
+
+        function printMemo() {
+            if (!selectedContract) return;
+            window.open(`/memo/${selectedContract.id}`, '_blank');
+        }
+
+        async function returnContract() {
+            if (!selectedContract || !confirm('Вернуть из аренды?')) return;
+
+            const response = await fetch(`/api/contracts/${selectedContract.id}/return`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                await loadContracts();
+                selectedContract = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        }
+
+        async function openProtocolModal() {
+            if (!selectedContract) return;
+
+            const response = await fetch(`/api/audit/CONTRACT/${selectedContract.id}`);
+            const logs = await response.json();
+
+            const tbody = document.getElementById('protocol-table');
+            tbody.innerHTML = '';
+
+            // Field name translations
+            const fieldNames = {
+                'contract_number': '№ договора',
+                'counterparty': 'Арендатор',
+                'lease_object': 'Объект аренды',
+                'start_date': 'Дата начала',
+                'end_date': 'Дата конца',
+                'status': 'Статус',
+                'memo_number': 'Номер служебной записки',
+                'is_deleted': 'Удалён'
+            };
+
+            const statusNames = {
+                'DRAFT': 'Черновик',
+                'APPROVED': 'Утверждён',
+                'RETURNED': 'Возвращён'
+            };
+
+            logs.forEach(log => {
+                const tr = document.createElement('tr');
+                const timestamp = new Date(log.timestamp).toLocaleString('ru-RU');
+                let changesText = '';
+
+                if (log.action === 'CREATE') {
+                    changesText = '<span style="color: #10b981; font-weight: 600;">Запись создана</span>';
+                } else if (log.action === 'DELETE') {
+                    changesText = '<span style="color: #ef4444; font-weight: 600;">Запись удалена</span>';
+                } else if (log.action === 'POSTING') {
+                    try {
+                        const d = JSON.parse(log.new_value);
+                        changesText = `<span style="color:#f59e0b;font-weight:600;">Бухгалтерская проводка:</span> ` +
+                            `Дебет: <code>${d.debet}</code> &rarr; Кредит: <code>${d.kredit}</code>` +
+                            (d.amount ? `, Сумма: <strong>${Number(d.amount).toLocaleString('ru-RU')} ${d.currency || ''}</strong>` : '');
+                    } catch(e) {
+                        changesText = '<span style="color:#f59e0b;font-weight:600;">Бухгалтерская проводка</span>';
+                    }
+                } else if (log.old_value && log.new_value) {
+                    try {
+                        const oldData = JSON.parse(log.old_value);
+                        const newData = JSON.parse(log.new_value);
+                        const changes = [];
+
+                        for (const key in newData) {
+                            if (oldData[key] !== newData[key] && fieldNames[key]) {
+                                let oldVal = oldData[key] || '-';
+                                let newVal = newData[key] || '-';
+
+                                // Format status
+                                if (key === 'status') {
+                                    oldVal = statusNames[oldVal] || oldVal;
+                                    newVal = statusNames[newVal] || newVal;
+                                }
+
+                                // Format boolean
+                                if (key === 'is_deleted') {
+                                    oldVal = oldVal ? 'Да' : 'Нет';
+                                    newVal = newVal ? 'Да' : 'Нет';
+                                }
+
+                                changes.push(`<div style="margin-bottom: 4px;"><strong>${fieldNames[key]}:</strong> ${oldVal} → ${newVal}</div>`);
+                            }
+                        }
+
+                        changesText = changes.length > 0 ? changes.join('') : 'Нет изменений';
+                    } catch (e) {
+                        changesText = 'Ошибка отображения изменений';
+                    }
+                }
+
+                tr.innerHTML = `
+                    <td>${timestamp}</td>
+                    <td>${log.user_name}</td>
+                    <td>${log.action}</td>
+                    <td style="font-size: 13px;">${changesText}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            openModal('protocol-modal');
+        }
+
+        init();
+    </script>
+</body>
+</html>

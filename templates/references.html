@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Справочники - iABS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">iABS — Учёт Аренды</div>
+            <div class="menu">
+                <div class="menu-item" onclick="window.location.href='/lease-out'">
+                    <i>📄</i>
+                    <span>Сдача в аренду</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='/lease-in'">
+                    <i>📥</i>
+                    <span>Получение в аренду</span>
+                </div>
+                <div class="menu-item active" onclick="window.location.href='/references'">
+                    <i>🗄️</i>
+                    <span>Справочники</span>
+                </div>
+                <div class="menu-item" id="audit-menu" onclick="window.location.href='/audit'" style="display: none;">
+                    <i>🔍</i>
+                    <span>Аудит</span>
+                </div>
+                <div class="menu-item" id="settings-menu" onclick="window.location.href='/settings'" style="display: none;">
+                    <i>⚙️</i>
+                    <span>Настройки</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="topbar">
+                <div class="topbar-title">Справочники</div>
+                <div style="display: flex; align-items: center;">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+                        <div class="theme-toggle-switch"></div>
+                    </div>
+                    <div class="user-info" onclick="window.location.href='/profile'">
+                        <div class="avatar">👤</div>
+                        <div class="user-details">
+                            <div class="user-name" id="user-name"></div>
+                            <div class="user-role" id="user-role"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="card">
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('lessees')">Арендаторы</button>
+                        <button class="tab" onclick="switchTab('lessors')">Арендодатели</button>
+                        <button class="tab" onclick="switchTab('contract-types')">Типы договоров</button>
+                    </div>
+
+                    <!-- Арендаторы Tab -->
+                    <div class="tab-content active" id="tab-lessees">
+                        <div class="actions" style="margin-bottom: 20px;">
+                            <button class="btn btn-primary" id="btn-add-lessee" onclick="openAddLesseeModal()">
+                                <span>➕</span>
+                                <span>Добавить</span>
+                            </button>
+                            <button class="btn btn-secondary" id="btn-edit-lessee" onclick="openEditLesseeModal()" disabled>
+                                <span>✏️</span>
+                                <span>Изменить</span>
+                            </button>
+                            <button class="btn btn-danger" id="btn-delete-lessee" onclick="deleteLessee()" disabled>
+                                <span>🗑️</span>
+                                <span>Удалить</span>
+                            </button>
+                        </div>
+
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Наименование</th>
+                                        <th>ИНН</th>
+                                        <th>Расчетный счет</th>
+                                        <th>Уникал код</th>
+                                        <th>Телефон</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lessees-table">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Арендодатели Tab -->
+                    <div class="tab-content" id="tab-lessors">
+                        <div class="actions" style="margin-bottom: 20px;">
+                            <button class="btn btn-primary" id="btn-add-lessor" onclick="openAddLessorModal()">
+                                <span>➕</span>
+                                <span>Добавить</span>
+                            </button>
+                            <button class="btn btn-secondary" id="btn-edit-lessor" onclick="openEditLessorModal()" disabled>
+                                <span>✏️</span>
+                                <span>Изменить</span>
+                            </button>
+                            <button class="btn btn-danger" id="btn-delete-lessor" onclick="deleteLessor()" disabled>
+                                <span>🗑️</span>
+                                <span>Удалить</span>
+                            </button>
+                        </div>
+
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Наименование</th>
+                                        <th>ИНН</th>
+                                        <th>Расчетный счет</th>
+                                        <th>Уникал код</th>
+                                        <th>Телефон</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lessors-table">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Типы договоров Tab -->
+                    <div class="tab-content" id="tab-contract-types">
+                        <div class="actions" style="margin-bottom: 20px;">
+                            <button class="btn btn-primary" id="btn-add-type" onclick="openAddTypeModal()">
+                                <span>➕</span>
+                                <span>Добавить</span>
+                            </button>
+                            <button class="btn btn-secondary" id="btn-edit-type" onclick="openEditTypeModal()" disabled>
+                                <span>✏️</span>
+                                <span>Изменить</span>
+                            </button>
+                            <button class="btn btn-danger" id="btn-delete-type" onclick="deleteContractType()" disabled>
+                                <span>🗑️</span>
+                                <span>Удалить</span>
+                            </button>
+                        </div>
+
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Наименование</th>
+                                        <th>Код</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="contract-types-table">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Counterparty Modal -->
+    <div class="modal" id="counterparty-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <div class="modal-title" id="counterparty-modal-title">Добавить контрагента</div>
+                <button class="modal-close" onclick="closeModal('counterparty-modal')">×</button>
+            </div>
+
+            <form id="counterparty-form">
+                <!-- INN first — triggers auto-fill -->
+                <div class="form-group">
+                    <label class="form-label">ИНН *</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" class="form-input" id="cp-inn" required maxlength="12" placeholder="Введите ИНН для автозаполнения" style="flex:1;">
+                        <span id="inn-status" style="font-size: 13px; white-space: nowrap;"></span>
+                    </div>
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">9, 10 или 12 цифр</div>
+                </div>
+
+                <div id="cp-autofill-fields">
+                    <div class="form-group">
+                        <label class="form-label">Наименование *</label>
+                        <input type="text" class="form-input" id="cp-name" required>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">КПП</label>
+                            <input type="text" class="form-input" id="cp-kpp">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">ОГРН</label>
+                            <input type="text" class="form-input" id="cp-ogrn">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Адрес *</label>
+                        <textarea class="form-textarea" id="cp-address" required></textarea>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Расчетный счет *</label>
+                            <input type="text" class="form-input" id="cp-bank-account" required maxlength="20">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Банк</label>
+                            <input type="text" class="form-input" id="cp-bank-name">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">БИК</label>
+                            <input type="text" class="form-input" id="cp-bik">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Телефон *</label>
+                            <input type="text" class="form-input" id="cp-phone" required>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" id="cp-email">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Уникал код *</label>
+                            <input type="text" class="form-input" id="cp-unique-code" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Статус</label>
+                        <select class="form-select" id="cp-status" required>
+                            <option value="ACTIVE">Активен</option>
+                            <option value="INACTIVE">Неактивен</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('counterparty-modal')">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contract Type Modal -->
+    <div class="modal" id="contract-type-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="contract-type-modal-title">Добавить тип договора</div>
+                <button class="modal-close" onclick="closeModal('contract-type-modal')">×</button>
+            </div>
+
+            <form id="contract-type-form">
+                <div class="form-group">
+                    <label class="form-label">Наименование *</label>
+                    <input type="text" class="form-input" id="ct-name" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Код *</label>
+                    <input type="text" class="form-input" id="ct-code" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Статус</label>
+                    <select class="form-select" id="ct-status" required>
+                        <option value="ACTIVE">Активен</option>
+                        <option value="INACTIVE">Неактивен</option>
+                    </select>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('contract-type-modal')">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let selectedLessee = null;
+        let selectedLessor = null;
+        let selectedContractType = null;
+        let currentUser = null;
+        let editingCounterpartyId = null;
+        let editingContractTypeId = null;
+        let currentCounterpartyType = null;
+
+        async function init() {
+            await loadUser();
+            await loadLessees();
+            await loadLessors();
+            await loadContractTypes();
+        }
+
+        async function loadUser() {
+            const response = await fetch('/api/me');
+            if (!response.ok) {
+                window.location.href = '/login';
+                return;
+            }
+            currentUser = await response.json();
+            document.getElementById('user-name').textContent = currentUser.name;
+
+            const roleElement = document.getElementById('user-role');
+            roleElement.textContent = currentUser.role;
+
+            // Add role color class
+            roleElement.className = 'user-role';
+            if (currentUser.role === 'SUPERADMIN') {
+                roleElement.classList.add('role-superadmin');
+                document.getElementById('settings-menu').style.display = 'flex';
+                document.getElementById('audit-menu').style.display = 'flex';
+            } else if (currentUser.role === 'ADMIN') {
+                roleElement.classList.add('role-admin');
+                document.getElementById('audit-menu').style.display = 'flex';
+            } else if (currentUser.role === 'CONTROLLER') {
+                roleElement.classList.add('role-controller');
+            } else if (currentUser.role === 'OPERATOR') {
+                roleElement.classList.add('role-operator');
+            }
+
+            updateButtonPermissions();
+        }
+
+        async function loadLessees() {
+            const response = await fetch('/api/counterparties');
+            const counterparties = await response.json();
+            const lessees = counterparties.filter(c => c.type === 'LESSEE');
+
+            const tbody = document.getElementById('lessees-table');
+            tbody.innerHTML = '';
+
+            lessees.forEach(lessee => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => selectLessee(lessee, tr);
+
+                const statusText = lessee.status === 'ACTIVE' ? 'Активен' : 'Неактивен';
+
+                tr.innerHTML = `
+                    <td><input type="radio" name="lessee" onclick="event.stopPropagation(); selectLessee(${JSON.stringify(lessee).replace(/"/g, '&quot;')}, this.parentElement.parentElement)"></td>
+                    <td>${lessee.name}</td>
+                    <td>${lessee.inn}</td>
+                    <td>${lessee.bank_account}</td>
+                    <td>${lessee.unique_code}</td>
+                    <td>${lessee.phone}</td>
+                    <td>${statusText}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadLessors() {
+            const response = await fetch('/api/counterparties');
+            const counterparties = await response.json();
+            const lessors = counterparties.filter(c => c.type === 'LESSOR');
+
+            const tbody = document.getElementById('lessors-table');
+            tbody.innerHTML = '';
+
+            lessors.forEach(lessor => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => selectLessor(lessor, tr);
+
+                const statusText = lessor.status === 'ACTIVE' ? 'Активен' : 'Неактивен';
+
+                tr.innerHTML = `
+                    <td><input type="radio" name="lessor" onclick="event.stopPropagation(); selectLessor(${JSON.stringify(lessor).replace(/"/g, '&quot;')}, this.parentElement.parentElement)"></td>
+                    <td>${lessor.name}</td>
+                    <td>${lessor.inn}</td>
+                    <td>${lessor.bank_account}</td>
+                    <td>${lessor.unique_code}</td>
+                    <td>${lessor.phone}</td>
+                    <td>${statusText}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadContractTypes() {
+            const response = await fetch('/api/contract-types');
+            const contractTypes = await response.json();
+
+            const tbody = document.getElementById('contract-types-table');
+            tbody.innerHTML = '';
+
+            contractTypes.forEach(ct => {
+                const tr = document.createElement('tr');
+                tr.onclick = () => selectContractType(ct, tr);
+
+                const statusText = ct.status === 'ACTIVE' ? 'Активен' : 'Неактивен';
+
+                tr.innerHTML = `
+                    <td><input type="radio" name="contract-type" onclick="event.stopPropagation(); selectContractType(${JSON.stringify(ct).replace(/"/g, '&quot;')}, this.parentElement.parentElement)"></td>
+                    <td>${ct.name}</td>
+                    <td>${ct.code}</td>
+                    <td>${statusText}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function selectLessee(lessee, row) {
+            document.querySelectorAll('#lessees-table tr').forEach(tr => tr.classList.remove('selected'));
+            row.classList.add('selected');
+            row.querySelector('input[type="radio"]').checked = true;
+            selectedLessee = lessee;
+            updateButtonPermissions();
+        }
+
+        function selectLessor(lessor, row) {
+            document.querySelectorAll('#lessors-table tr').forEach(tr => tr.classList.remove('selected'));
+            row.classList.add('selected');
+            row.querySelector('input[type="radio"]').checked = true;
+            selectedLessor = lessor;
+            updateButtonPermissions();
+        }
+
+        function selectContractType(ct, row) {
+            document.querySelectorAll('#contract-types-table tr').forEach(tr => tr.classList.remove('selected'));
+            row.classList.add('selected');
+            row.querySelector('input[type="radio"]').checked = true;
+            selectedContractType = ct;
+            updateButtonPermissions();
+        }
+
+        function updateButtonPermissions() {
+            if (!currentUser) return;
+
+            const canEdit = ['SUPERADMIN', 'ADMIN', 'CONTROLLER'].includes(currentUser.role);
+            const canDelete = ['SUPERADMIN', 'ADMIN'].includes(currentUser.role);
+
+            document.getElementById('btn-add-lessee').disabled = !canEdit;
+            document.getElementById('btn-edit-lessee').disabled = !canEdit || !selectedLessee;
+            document.getElementById('btn-delete-lessee').disabled = !canDelete || !selectedLessee;
+
+            document.getElementById('btn-add-lessor').disabled = !canEdit;
+            document.getElementById('btn-edit-lessor').disabled = !canEdit || !selectedLessor;
+            document.getElementById('btn-delete-lessor').disabled = !canDelete || !selectedLessor;
+
+            document.getElementById('btn-add-type').disabled = !canEdit;
+            document.getElementById('btn-edit-type').disabled = !canEdit || !selectedContractType;
+            document.getElementById('btn-delete-type').disabled = !canDelete || !selectedContractType;
+        }
+
+        // INN auto-fill logic
+        let innLookupTimer = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('cp-inn').addEventListener('input', function() {
+                clearTimeout(innLookupTimer);
+                const inn = this.value.trim();
+                const statusEl = document.getElementById('inn-status');
+                if (inn.length < 9) { statusEl.textContent = ''; return; }
+                statusEl.textContent = '⏳ Поиск...';
+                statusEl.style.color = '#9ca3af';
+                innLookupTimer = setTimeout(() => lookupInn(inn), 400);
+            });
+        });
+
+        async function lookupInn(inn) {
+            const statusEl = document.getElementById('inn-status');
+            try {
+                const res = await fetch(`/api/counterparties/lookup?inn=${encodeURIComponent(inn)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    fillCounterpartyForm(data);
+                    statusEl.textContent = '✅ Найдено — данные заполнены';
+                    statusEl.style.color = '#22c55e';
+                } else {
+                    statusEl.textContent = '❌ ИНН не найден в базе';
+                    statusEl.style.color = '#ef4444';
+                }
+            } catch {
+                statusEl.textContent = '';
+            }
+        }
+
+        function fillCounterpartyForm(data) {
+            document.getElementById('cp-name').value        = data.name         || '';
+            document.getElementById('cp-bank-account').value = data.bank_account || '';
+            document.getElementById('cp-unique-code').value = data.unique_code  || '';
+            document.getElementById('cp-address').value     = data.address      || '';
+            document.getElementById('cp-phone').value       = data.phone        || '';
+            document.getElementById('cp-kpp').value         = data.kpp          || '';
+            document.getElementById('cp-ogrn').value        = data.ogrn         || '';
+            document.getElementById('cp-bank-name').value   = data.bank_name    || '';
+            document.getElementById('cp-bik').value         = data.bik          || '';
+            document.getElementById('cp-email').value       = data.email        || '';
+            if (data.status) document.getElementById('cp-status').value = data.status;
+        }
+
+        function resetCounterpartyForm() {
+            document.getElementById('counterparty-form').reset();
+            document.getElementById('cp-status').value = 'ACTIVE';
+            document.getElementById('inn-status').textContent = '';
+        }
+
+        function openAddLesseeModal() {
+            editingCounterpartyId = null;
+            currentCounterpartyType = 'LESSEE';
+            document.getElementById('counterparty-modal-title').textContent = 'Добавить арендатора';
+            resetCounterpartyForm();
+            openModal('counterparty-modal');
+        }
+
+        function openEditLesseeModal() {
+            if (!selectedLessee) return;
+            editingCounterpartyId = selectedLessee.id;
+            currentCounterpartyType = 'LESSEE';
+            document.getElementById('counterparty-modal-title').textContent = 'Изменить арендатора';
+            document.getElementById('cp-inn').value = selectedLessee.inn;
+            document.getElementById('inn-status').textContent = '';
+            fillCounterpartyForm(selectedLessee);
+            openModal('counterparty-modal');
+        }
+
+        function openAddLessorModal() {
+            editingCounterpartyId = null;
+            currentCounterpartyType = 'LESSOR';
+            document.getElementById('counterparty-modal-title').textContent = 'Добавить арендодателя';
+            resetCounterpartyForm();
+            openModal('counterparty-modal');
+        }
+
+        function openEditLessorModal() {
+            if (!selectedLessor) return;
+            editingCounterpartyId = selectedLessor.id;
+            currentCounterpartyType = 'LESSOR';
+            document.getElementById('counterparty-modal-title').textContent = 'Изменить арендодателя';
+            document.getElementById('cp-inn').value = selectedLessor.inn;
+            document.getElementById('inn-status').textContent = '';
+            fillCounterpartyForm(selectedLessor);
+            openModal('counterparty-modal');
+        }
+
+        document.getElementById('counterparty-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                name:         document.getElementById('cp-name').value,
+                inn:          document.getElementById('cp-inn').value,
+                type:         currentCounterpartyType,
+                bank_account: document.getElementById('cp-bank-account').value,
+                unique_code:  document.getElementById('cp-unique-code').value,
+                address:      document.getElementById('cp-address').value,
+                phone:        document.getElementById('cp-phone').value,
+                status:       document.getElementById('cp-status').value,
+                kpp:          document.getElementById('cp-kpp').value || null,
+                ogrn:         document.getElementById('cp-ogrn').value || null,
+                bank_name:    document.getElementById('cp-bank-name').value || null,
+                bik:          document.getElementById('cp-bik').value || null,
+                email:        document.getElementById('cp-email').value || null,
+            };
+
+            const url = editingCounterpartyId ? `/api/counterparties/${editingCounterpartyId}` : '/api/counterparties';
+            const method = editingCounterpartyId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeModal('counterparty-modal');
+                await loadLessees();
+                await loadLessors();
+                selectedLessee = null;
+                selectedLessor = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        });
+
+        async function deleteLessee() {
+            if (!selectedLessee || !confirm('Удалить арендатора?')) return;
+
+            const response = await fetch(`/api/counterparties/${selectedLessee.id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                await loadLessees();
+                selectedLessee = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        }
+
+        async function deleteLessor() {
+            if (!selectedLessor || !confirm('Удалить арендодателя?')) return;
+
+            const response = await fetch(`/api/counterparties/${selectedLessor.id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                await loadLessors();
+                selectedLessor = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        }
+
+        function openAddTypeModal() {
+            editingContractTypeId = null;
+            document.getElementById('contract-type-modal-title').textContent = 'Добавить тип договора';
+            document.getElementById('contract-type-form').reset();
+            document.getElementById('ct-status').value = 'ACTIVE';
+            openModal('contract-type-modal');
+        }
+
+        function openEditTypeModal() {
+            if (!selectedContractType) return;
+            editingContractTypeId = selectedContractType.id;
+            document.getElementById('contract-type-modal-title').textContent = 'Изменить тип договора';
+            document.getElementById('ct-name').value = selectedContractType.name;
+            document.getElementById('ct-code').value = selectedContractType.code;
+            document.getElementById('ct-status').value = selectedContractType.status;
+            openModal('contract-type-modal');
+        }
+
+        document.getElementById('contract-type-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                name: document.getElementById('ct-name').value,
+                code: document.getElementById('ct-code').value,
+                status: document.getElementById('ct-status').value,
+            };
+
+            const url = editingContractTypeId ? `/api/contract-types/${editingContractTypeId}` : '/api/contract-types';
+            const method = editingContractTypeId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                closeModal('contract-type-modal');
+                await loadContractTypes();
+                selectedContractType = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        });
+
+        async function deleteContractType() {
+            if (!selectedContractType || !confirm('Удалить тип договора?')) return;
+
+            const response = await fetch(`/api/contract-types/${selectedContractType.id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                await loadContractTypes();
+                selectedContractType = null;
+                updateButtonPermissions();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профиль пользователя - iABS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">iABS — Учёт Аренды</div>
+            <div class="menu">
+                <div class="menu-item" onclick="window.location.href='/lease-out'">
+                    <i>📄</i>
+                    <span>Сдача в аренду</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='/lease-in'">
+                    <i>📥</i>
+                    <span>Получение в аренду</span>
+                </div>
+                <div class="menu-item" onclick="window.location.href='/references'">
+                    <i>🗄️</i>
+                    <span>Справочники</span>
+                </div>
+                <div class="menu-item" id="audit-menu" onclick="window.location.href='/audit'" style="display: none;">
+                    <i>🔍</i>
+                    <span>Аудит</span>
+                </div>
+                <div class="menu-item" id="settings-menu" onclick="window.location.href='/settings'" style="display: none;">
+                    <i>⚙️</i>
+                    <span>Настройки</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="topbar">
+                <div class="topbar-title">Профиль пользователя</div>
+                <div style="display: flex; align-items: center;">
+                    <div class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+                        <div class="theme-toggle-switch"></div>
+                    </div>
+                    <div class="user-info" onclick="window.location.href='/profile'">
+                        <div class="avatar">👤</div>
+                        <div class="user-details">
+                            <div class="user-name" id="user-name"></div>
+                            <div class="user-role" id="user-role"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <!-- User Information Card -->
+                    <div class="card">
+                        <div class="card-title">Информация о пользователе</div>
+
+                        <div class="form-group">
+                            <label class="form-label">ФИО</label>
+                            <input type="text" class="form-input" id="profile-name" disabled>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Табель №</label>
+                            <input type="text" class="form-input" id="profile-number" disabled>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Роль</label>
+                            <input type="text" class="form-input" id="profile-role" disabled>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Статус</label>
+                            <input type="text" class="form-input" id="profile-status" disabled>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Дата создания аккаунта</label>
+                            <input type="text" class="form-input" id="profile-created" disabled>
+                        </div>
+                    </div>
+
+                    <!-- Permissions Card -->
+                    <div class="card">
+                        <div class="card-title">Мои права доступа</div>
+
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 12px; color: #9ca3af;">Доступ к действиям:</div>
+                            <div style="display: flex; flex-direction: column; gap: 8px;" id="permissions-list">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password Change Card -->
+                <div class="card" style="margin-top: 24px; max-width: 600px;">
+                    <div class="card-title">Сменить пароль</div>
+
+                    <form id="password-form">
+                        <div class="form-group">
+                            <label class="form-label">Текущий пароль</label>
+                            <input type="password" class="form-input" id="current-password" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Новый пароль</label>
+                            <input type="password" class="form-input" id="new-password" required minlength="6">
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Минимум 6 символов</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Подтверждение пароля</label>
+                            <input type="password" class="form-input" id="confirm-password" required minlength="6">
+                        </div>
+
+                        <div style="margin-top: 24px;">
+                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Logout Section -->
+                <div class="card" style="margin-top: 24px; max-width: 600px;">
+                    <div class="card-title">Выход из системы</div>
+                    <div style="margin-bottom: 16px; color: #9ca3af;">
+                        Завершить текущий сеанс и вернуться на страницу входа
+                    </div>
+                    <button class="btn btn-danger" onclick="logout()">
+                        <span>🚪</span>
+                        <span>Выйти</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let userPermissions = {};
+
+        async function init() {
+            await loadUser();
+            await loadPermissions();
+        }
+
+        async function loadUser() {
+            const response = await fetch('/api/me');
+            if (!response.ok) {
+                window.location.href = '/login';
+                return;
+            }
+            currentUser = await response.json();
+
+            document.getElementById('user-name').textContent = currentUser.name;
+
+            const roleElement = document.getElementById('user-role');
+            roleElement.textContent = currentUser.role;
+
+            // Add role color class
+            roleElement.className = 'user-role';
+            if (currentUser.role === 'SUPERADMIN') {
+                roleElement.classList.add('role-superadmin');
+                document.getElementById('settings-menu').style.display = 'flex';
+                document.getElementById('audit-menu').style.display = 'flex';
+            } else if (currentUser.role === 'ADMIN') {
+                roleElement.classList.add('role-admin');
+                document.getElementById('audit-menu').style.display = 'flex';
+            } else if (currentUser.role === 'CONTROLLER') {
+                roleElement.classList.add('role-controller');
+            } else if (currentUser.role === 'OPERATOR') {
+                roleElement.classList.add('role-operator');
+            }
+
+            const roleNames = {
+                'SUPERADMIN': 'Суперадмин',
+                'ADMIN': 'Админ',
+                'CONTROLLER': 'Контроллер',
+                'OPERATOR': 'Оператор'
+            };
+
+            const statusNames = {
+                'ACTIVE': 'Активен',
+                'INACTIVE': 'Неактивен'
+            };
+
+            document.getElementById('profile-name').value = currentUser.name;
+            document.getElementById('profile-number').value = currentUser.personnel_number;
+            document.getElementById('profile-role').value = roleNames[currentUser.role] || currentUser.role;
+            document.getElementById('profile-status').value = statusNames[currentUser.status] || currentUser.status;
+
+            const createdDate = new Date(currentUser.created_at);
+            document.getElementById('profile-created').value = createdDate.toLocaleString('ru-RU', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        async function loadPermissions() {
+            const response = await fetch('/api/permissions/me');
+            userPermissions = await response.json();
+
+            const permissionNames = {
+                'add': 'Добавить',
+                'edit': 'Изменить',
+                'delete': 'Удалить',
+                'approve': 'Утвердить',
+                'return': 'Возврат из аренды',
+                'payment': 'Оплатить',
+                'protocol': 'Протокол',
+                'settings': 'Настройки',
+                'references_edit': 'Редактировать справочники',
+                'references_delete': 'Удалять справочники'
+            };
+
+            const permissionsList = document.getElementById('permissions-list');
+            permissionsList.innerHTML = '';
+
+            for (const [key, value] of Object.entries(userPermissions)) {
+                const permDiv = document.createElement('div');
+                permDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; padding: 8px; background: #1f2937; border-radius: 6px;';
+
+                const icon = value ? '✓' : '✗';
+                const color = value ? '#10b981' : '#ef4444';
+                const text = permissionNames[key] || key;
+
+                permDiv.innerHTML = `
+                    <span style="color: ${color}; font-weight: bold; font-size: 16px;">${icon}</span>
+                    <span style="color: #e4e6eb;">${text}</span>
+                `;
+                permissionsList.appendChild(permDiv);
+            }
+        }
+
+        document.getElementById('password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const currentPassword = document.getElementById('current-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('Пароли не совпадают');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('Пароль должен содержать минимум 6 символов');
+                return;
+            }
+
+            const response = await fetch('/api/profile/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword
+                })
+            });
+
+            if (response.ok) {
+                alert('Пароль успешно изменён. Пожалуйста, войдите снова.');
+                await logout();
+            } else {
+                const error = await response.json();
+                alert(error.detail);
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
